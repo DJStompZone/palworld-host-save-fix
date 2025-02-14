@@ -41,7 +41,7 @@ To fix this bug, we've made a script that takes the GUID of the player on the ne
 Dependencies:
 - Python >=3.10
 - Clone the repository with `git clone https://github.com/xNul/palworld-host-save-fix ; cd palworld-host-save-fix`
-- Install [Palworld Save Tools](https://github.com/StompZone/palworld-save-tools) with `python -m pip install -r requirements.txt`
+- Install [Palworld Save Tools](https://github.com/StompZone/palworldsavetools) with `python -m pip install -r requirements.txt`
 
 
 Using the GUI:
