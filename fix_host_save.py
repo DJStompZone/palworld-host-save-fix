@@ -6,18 +6,25 @@ import zlib
 
 from palworld_save_tools.gvas import GvasFile
 from palworld_save_tools.palsav import compress_gvas_to_sav, decompress_sav_to_gvas
-from palworld_save_tools.paltypes import PALWORLD_CUSTOM_PROPERTIES, PALWORLD_TYPE_HINTS
+from palworld_save_tools.paltypes import PALWORLD_CUSTOM_PROPERTIES, PALWORLD_TYPE_HINTS, DISABLED_PROPERTIES
+
+#Constant needed to help define custom properties and only apply properties that won't cause the fix to fail.
+DISABLED_PROPERTIES = {
+    ".worldSaveData.BaseCampSaveData.Value.ModuleMap",
+    ".worldSaveData.MapObjectSaveData",
+}
+
 
 def main():
+
     if len(sys.argv) < 5:
         print('fix_host_save.py <save_path> <new_guid> <old_guid> <guild_fix>')
         exit(1)
-    
     save_path = sys.argv[1]
     new_guid = sys.argv[2]
     old_guid = sys.argv[3]
     guild_fix = sys.argv[4]
-    
+
     # String to boolean.
     if guild_fix.lower() == 'true':
         guild_fix = True
@@ -53,6 +60,8 @@ def main():
     level_sav_path = save_path + '/Level.sav'
     old_sav_path = save_path + '/Players/'+ old_guid + '.sav'
     new_sav_path = save_path + '/Players/' + new_guid + '.sav'
+
+    #This might be needed for manual conversions
     level_json_path = level_sav_path + '.json'
     old_json_path = old_sav_path + '.json'
     
@@ -113,10 +122,14 @@ of your save folder before continuing. Press enter if you would like to continue
     print('Done!', flush=True)
     
     # Convert JSON back to save files.
+
+
     json_to_sav(level_json, level_sav_path)
     json_to_sav(old_json, old_sav_path)
     
     # We must rename the patched save file from the old GUID to the new GUID for the server to recognize it.
+    print("\nRenaming the repaired SAV file to use the New GUID")
+    
     if os.path.exists(new_sav_path):
         os.remove(new_sav_path)
     os.rename(old_sav_path, new_sav_path)
@@ -124,32 +137,26 @@ of your save folder before continuing. Press enter if you would like to continue
 
 def sav_to_json(filepath):
     print(f'Converting {filepath} to JSON...', end='', flush=True)
-    with open(filepath, 'rb') as f:
-        data = f.read()
-        raw_gvas, _ = decompress_sav_to_gvas(data)
-    gvas_file = GvasFile.read(
-        raw_gvas, PALWORLD_TYPE_HINTS, PALWORLD_CUSTOM_PROPERTIES, allow_nan=True
-    )
-    json_data = gvas_file.dump()
+    convertSavToJsonCommand = subprocess.Popen(f'python palworld-save-tools-windows-v0.23.1\convert.py "{filepath}"', stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+    output = convertSavToJsonCommand.communicate(b'y\n')[0]
+    print("\n")
+    print(output)
+    print("\n")
+
+    f = open(filepath + '.json')
+    json_data = json.load(f)
     print('Done!', flush=True)
     return json_data
 
 def json_to_sav(json_data, output_filepath):
     print(f'Converting JSON to {output_filepath}...', end='', flush=True)
-    gvas_file = GvasFile.load(json_data)
-    if (
-        'Pal.PalWorldSaveGame' in gvas_file.header.save_game_class_name
-        or 'Pal.PalLocalWorldSaveGame' in gvas_file.header.save_game_class_name
-    ):
-        save_type = 0x32
-    else:
-        save_type = 0x31
-    sav_file = compress_gvas_to_sav(
-        gvas_file.write(PALWORLD_CUSTOM_PROPERTIES), save_type
-    )
-    with open(output_filepath, 'wb') as f:
-        f.write(sav_file)
-    print('Done!', flush=True)
+    preFinalPath = output_filepath+".json"
+    with open(preFinalPath, 'w') as finalJSON:
+        json.dump(json_data, finalJSON)
+    ConvertJSONToSAV = subprocess.Popen(f'python palworld-save-tools-windows-v0.23.1\convert.py "{preFinalPath}', stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+    output = ConvertJSONToSAV.communicate(b'y\n')[0]
+    print(output)
+    print('\nDone!', flush=True)
 
 if __name__ == '__main__':
     main()
